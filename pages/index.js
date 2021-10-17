@@ -1,82 +1,83 @@
-import Head from 'next/head'
+import Head from 'next/head';
+import axios from 'axios';
+import DrinkCard from '../components/DrinkCard';
+import { useState } from 'react';
 
-export default function Home() {
+export async function getStaticProps(context) {
+
+  const drinksRequest = await axios.get('https://www.thecocktaildb.com/api/json/v2/9973533/popular.php')
+  
+  return {
+    props: {
+      drinksRequest: drinksRequest.data.drinks
+    }
+  }
+}
+
+export default function Home({drinksRequest}) {
+  const[drinks, setDrinks] = useState(drinksRequest)
+
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen py-2">
+    <div className="bg-coolGray-100 pb-8">
       <Head>
-        <title>Create Next App</title>
-        <link rel="icon" href="/favicon.ico" />
+        <title>Voctus</title>
+        <link rel="icon" href="/logo.png" />
       </Head>
+      <Hero />
+      <section aria-labelledby="category-heading" className="pt-24 sm:pt-32 xl:max-w-7xl xl:mx-auto xl:px-8">
+          <div className="mb-4 px-4 sm:px-6 sm:flex sm:items-center sm:justify-between lg:px-8 xl:px-0">
+            <h2 id="category-heading" className="text-2xl font-extrabold tracking-tight text-gray-900">
+              Popular Drinks
+            </h2>
+            <a href="#" className="hidden text-sm font-semibold text-indigo-600 hover:text-indigo-500 sm:block">
+              Discover<span aria-hidden="true"> &rarr;</span>
+            </a>
+          </div>
 
-      <main className="flex flex-col items-center justify-center w-full flex-1 px-20 text-center">
-        <h1 className="text-6xl font-bold">
-          Welcome to{' '}
-          <a className="text-blue-600" href="https://nextjs.org">
-            Next.js!
-          </a>
-        </h1>
+          <DrinkCard drinks={drinks} />
+          
+          <div className="mt-6 px-4 sm:hidden">
+            <a href="#" className="block text-sm font-semibold text-indigo-600 hover:text-indigo-500">
+              Discover<span aria-hidden="true"> &rarr;</span>
+            </a>
+          </div>
+        </section>
+      
+    </div>
+  )
+}
 
-        <p className="mt-3 text-2xl">
-          Get started by editing{' '}
-          <code className="p-3 font-mono text-lg bg-gray-100 rounded-md">
-            pages/index.js
-          </code>
-        </p>
 
-        <div className="flex flex-wrap items-center justify-around max-w-4xl mt-6 sm:w-full">
+function Hero() {
+  return (
+    <main className="pt-16 mx-auto max-w-7xl px-4 sm:pt-24">
+    <div className="text-center">
+      <h1 className="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl">
+        <span className="block xl:inline">A miriad of cocktails</span>{' '}
+        <span className="block text-indigo-600 xl:inline">for your enjoyment</span>
+      </h1>
+      <p className="mt-3 max-w-md mx-auto text-base text-gray-500 sm:text-lg md:mt-5 md:text-xl md:max-w-3xl">
+        Explore our expansive catalogue of drinks, or venture into our creator to build your very own cocktail to share with the world.
+      </p>
+      <div className="mt-5 max-w-md mx-auto sm:flex sm:justify-center md:mt-8">
+        <div className="rounded-md shadow">
           <a
-            href="https://nextjs.org/docs"
-            className="p-6 mt-6 text-left border w-96 rounded-xl hover:text-blue-600 focus:text-blue-600"
+            href="#"
+            className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 md:py-4 md:text-lg md:px-10"
           >
-            <h3 className="text-2xl font-bold">Documentation &rarr;</h3>
-            <p className="mt-4 text-xl">
-              Find in-depth information about Next.js features and API.
-            </p>
-          </a>
-
-          <a
-            href="https://nextjs.org/learn"
-            className="p-6 mt-6 text-left border w-96 rounded-xl hover:text-blue-600 focus:text-blue-600"
-          >
-            <h3 className="text-2xl font-bold">Learn &rarr;</h3>
-            <p className="mt-4 text-xl">
-              Learn about Next.js in an interactive course with quizzes!
-            </p>
-          </a>
-
-          <a
-            href="https://github.com/vercel/next.js/tree/master/examples"
-            className="p-6 mt-6 text-left border w-96 rounded-xl hover:text-blue-600 focus:text-blue-600"
-          >
-            <h3 className="text-2xl font-bold">Examples &rarr;</h3>
-            <p className="mt-4 text-xl">
-              Discover and deploy boilerplate example Next.js projects.
-            </p>
-          </a>
-
-          <a
-            href="https://vercel.com/import?filter=next.js&utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className="p-6 mt-6 text-left border w-96 rounded-xl hover:text-blue-600 focus:text-blue-600"
-          >
-            <h3 className="text-2xl font-bold">Deploy &rarr;</h3>
-            <p className="mt-4 text-xl">
-              Instantly deploy your Next.js site to a public URL with Vercel.
-            </p>
+            Get started
           </a>
         </div>
-      </main>
-
-      <footer className="flex items-center justify-center w-full h-24 border-t">
-        <a
-          className="flex items-center justify-center"
-          href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Powered by{' '}
-          <img src="/vercel.svg" alt="Vercel Logo" className="h-4 ml-2" />
-        </a>
-      </footer>
+        <div className="mt-3 rounded-md shadow sm:mt-0 sm:ml-3">
+          <a
+            href="#"
+            className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-indigo-600 bg-white hover:bg-gray-50 md:py-4 md:text-lg md:px-10"
+          >
+            Live demo
+          </a>
+        </div>
+      </div>
     </div>
+  </main>
   )
 }
