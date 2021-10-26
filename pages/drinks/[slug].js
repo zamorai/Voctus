@@ -1,29 +1,15 @@
-import { useEffect, useState } from 'react'
+import React, { useContext, useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import axios from 'axios';
-import { CheckIcon, QuestionMarkCircleIcon, StarIcon } from '@heroicons/react/solid'
-import { RadioGroup } from '@headlessui/react'
-import { ShieldCheckIcon, HeartIcon, BeakerIcon } from '@heroicons/react/outline'
+import { StarIcon } from '@heroicons/react/solid'
+import { HeartIcon, BeakerIcon } from '@heroicons/react/outline'
 import Spinner from '../../components/Spinner'
-
-const product = {
-  name: 'Everyday Ruck Snack',
-  href: '#',
-  price: '$220',
-  description:
-    "Don't compromise on snack-carrying capacity with this lightweight and spacious bag. The drawstring top keeps all your favorite chips, crisps, fries, biscuits, crackers, and cookies secure.",
-  imageSrc: 'https://tailwindui.com/img/ecommerce-images/product-page-04-featured-product-shot.jpg',
-  imageAlt: 'Model wearing light green backpack with black canvas straps and front zipper pouch.',
-  breadcrumbs: [
-    { id: 1, name: 'Travel', href: '#' },
-    { id: 2, name: 'Bags', href: '#' },
-  ],
-  sizes: [
-    { name: '18L', description: 'Perfect for a reasonable amount of snacks.' },
-    { name: '20L', description: 'Enough room for a serious amount of snacks.' },
-  ],
-}
-const reviews = { average: 4, totalCount: 1624 }
+import { firestore } from '../../lib/firebase';
+import { doc, getDoc, setDoc, collection, getDocs, onSnapshot, query, updateDoc, increment } from 'firebase/firestore'
+import Reviews from '../../components/drink/Reviews'
+import { UserContext } from '../../lib/context';
+import moment from 'moment'
+import HeartButton from '../../components/HeartButton';
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(' ')
@@ -31,20 +17,100 @@ function classNames(...classes) {
 
 export async function getServerSideProps({ params }) {
   const slug = params.slug
-  const drinksRequest = await axios.get(`https://www.thecocktaildb.com/api/json/v2/9973533/lookup.php?i=${slug}`)
+  const drinksRequest = doc(firestore, `drinks/${slug}`)
+  const reviewRequest = collection(firestore, `drinks/${slug}/reviews`)
+  const drinksResponse = await getDoc(drinksRequest)
+  const reviewResponse = await getDocs(reviewRequest)
+  const tempReviews = []
+  reviewResponse.forEach((doc) => {
+    tempReviews.push(doc.data())
+  })
   
   return {
     props: {
-      drinksRequest: drinksRequest.data.drinks
+      drinksRequest: drinksResponse.data(),
+      reviews: tempReviews
     }
   }
 }
 
-export default function Drink({drinksRequest}) {
-  const router = useRouter()
-  const[drink, setDrink] = useState(...drinksRequest)
+export default function Drink({drinksRequest, reviews}) {
+  const user = useContext(UserContext)
+  const[drink, setDrink] = useState(drinksRequest)
+  const[reviewText, setReviewText] = useState('')
+  const[desc, setDesc] = useState('')
+  const[reviewStars, setReviewStars] = useState(0)
+  const[alreadyReviewed, setAlreadyReviewed] = useState(false)
+  const [allReviews, setAllReviews] = useState(reviews)
 
-  console.log(drink)
+  useEffect(() => {
+    const getUserReview = async () => {
+      const alreadyReviewedRef = doc(firestore, `drinks/${drinksRequest.id}/reviews/${user?.uid}`)
+      const alreadyReviewedSnap = await getDoc(alreadyReviewedRef)
+      if (alreadyReviewedSnap.data()) {
+        setAlreadyReviewed(true)
+      }
+    }
+    getUserReview()
+  }, [user])
+
+  useEffect(() => {
+    const q = query(collection(firestore, `drinks/${drink.id}/reviews`))
+    const unsub = onSnapshot(q, (doc) => {
+      const tempReviews = []
+      doc.forEach((review) => {
+        tempReviews.push(review.data())
+      })
+      setAllReviews(tempReviews)
+    })
+    return () => unsub()
+  }, [])
+
+  const colorStars = (rating) => {
+    setReviewStars(rating)
+  }
+
+  const handleReviewSubmit = async () => {
+    setAlreadyReviewed(true)
+    const userReviewRef = doc(firestore, `drinks/${drinksRequest.id}/reviews/${user.uid}`)
+    const baseDrinkReview = doc(firestore, `drinks/${drinksRequest.id}`)
+    setDoc(userReviewRef, {
+      id: user.uid,
+      stars: reviewStars,
+      title: reviewText,
+      description: desc,
+      time: moment().format('MMMM DD, YYYY'),
+      email: user.email
+    }, {merge: true})
+
+    await updateDoc(baseDrinkReview, {
+      ratings: increment(1),
+      ratingsTotal: increment(reviewStars)
+    })
+
+  }
+
+  const displayIngredients = () => {
+    const drinkIngredients = []
+    for (let i = 1; i <= 15; i++) {
+      let ingredientCount = `ingredient${i}`
+      if (drink[ingredientCount]) {
+        drinkIngredients.push(drink[ingredientCount])
+      }
+    }
+    return (
+      <>
+        {drinkIngredients.map((ingredient, idx) => (
+          <div className='flex items-center justify-between px-4 py-2'>
+            <p>{ingredient}</p>
+            <p>{drink[`measure${idx+1}`]}</p>
+          </div>
+        ))}
+      </>
+    )
+  }
+  
+
   return (
     <div className="bg-white">
       {drink ?
@@ -53,7 +119,7 @@ export default function Drink({drinksRequest}) {
         <div className="lg:max-w-lg lg:self-end">
 
           <div className="mt-4">
-            <h1 className="text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">{drink.strDrink}</h1>
+            <h1 className="text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">{drink.name}</h1>
           </div>
 
           <section aria-labelledby="information-heading" className="mt-4">
@@ -71,7 +137,7 @@ export default function Drink({drinksRequest}) {
                         <StarIcon
                           key={rating}
                           className={classNames(
-                            reviews.average > rating ? 'text-yellow-400' : 'text-gray-300',
+                            drink.ratingsTotal/drink.ratings > rating ? 'text-yellow-400' : 'text-gray-300',
                             'h-5 w-5 flex-shrink-0'
                           )}
                           aria-hidden="true"
@@ -80,18 +146,18 @@ export default function Drink({drinksRequest}) {
                     </div>
                     <p className="sr-only">{reviews.average} out of 5 stars</p>
                   </div>
-                  <p className="ml-2 text-sm text-gray-500">{reviews.totalCount} reviews</p>
+                  <p className="ml-2 text-sm text-gray-500">{drink.ratings} reviews</p>
                 </div>
               </div>
             </div>
 
             <div className="mt-4 space-y-6">
-              <p className="text-base text-gray-500">{drink.strInstructions}</p>
+              <p className="text-base text-gray-500">{drink.instructions}</p>
             </div>
 
             <div className="mt-6 flex items-center">
               <BeakerIcon className="flex-shrink-0 w-5 h-5 text-indigo-600" aria-hidden="true" />
-              <p className="ml-2 text-sm text-gray-500">{drink.strGlass}</p>
+              <p className="ml-2 text-sm text-gray-500">{drink.glass}</p>
             </div>
           </section>
         </div>
@@ -99,7 +165,7 @@ export default function Drink({drinksRequest}) {
         {/* Product image */}
         <div className="mt-10 lg:mt-0 lg:col-start-2 lg:row-span-2 lg:self-center">
           <div className="aspect-w-1 aspect-h-1 rounded-lg overflow-hidden">
-            <img src={drink.strDrinkThumb} alt={product.imageAlt} className="w-full h-full object-center object-cover" />
+            <img src={drink.imageURL} className="w-full h-full object-center object-cover" />
           </div>
         </div>
 
@@ -113,22 +179,78 @@ export default function Drink({drinksRequest}) {
             <div className="pb-5 border-b border-gray-200 flex items-center justify-between">
               <h3 className="text-lg leading-6 font-medium text-gray-900">Ingredients</h3>
               <div className="mt-3 sm:mt-0 sm:ml-4">
-                <button
-                  type="button"
-                  className="inline-flex items-center px-4 py-2 border border-coolGray-300 rounded-md shadow-sm text-sm font-medium text-white bg-coolGray-50 hover:bg-coolGray-100 focus:outline-none"
-                >
-                  <HeartIcon className="flex-shrink-0 w-5 h-5 text-red-500" aria-hidden="true" />
-                </button>
+                <HeartButton id={drink.id} single={true} favs={drink.favorites}/>
               </div>
             </div>
 
-            <div className='flex flex-col'>
-              <p>{drink.strIngredient1} {drink.strMeasure1}</p>
-              <p>{drink.strIngredient2} {drink.strMeasure2}</p>
-              <p>{drink.strIngredient3} {drink.strMeasure3}</p>
+            <div className='flex flex-col divide-y divide-coolGray-200'>
+              {displayIngredients()}
             </div>
 
           </section>
+        </div>
+
+        <div className="col-span-2 py-16  sm:py-24 ">
+
+          {!alreadyReviewed &&
+          <>
+          <div className="bg-coolGray-50 shadow-md z-10 relative sm:rounded-lg mb-8">
+            <div className="px-4 py-5 sm:p-6 flex flex-col">
+              <div className="pb-5 flex items-center justify-between">
+                <h3 className="text-lg leading-6 font-medium text-gray-900">Leave your review</h3>
+                <div className="mt-3 sm:mt-0 sm:ml-4">
+                  <button
+                  type="button"
+                  onClick={handleReviewSubmit}
+                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none"
+                  >
+                    Submit
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <div className='flex items-center mb-3'>
+                  {[1,2,3,4,5].map((rating) => (
+                    <StarIcon
+                      key={rating}
+                      onClick={() => colorStars(rating)}
+                      className={classNames(
+                        reviewStars >= rating ? 'text-yellow-400' : 'text-gray-300',
+                        'h-5 w-5 flex-shrink-0'
+                      )}
+                      aria-hidden="true"
+                    />
+                  ))}
+                </div>
+                <div className='text-center md:text-left mb-4'>
+                  <input
+                    type="text"
+                    className="shadow-sm w-full sm:text-sm border-gray-300 rounded-md"
+                    placeholder="What's most important to know?"
+                    value={reviewText}
+                    onChange={(e) => setReviewText(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div>
+                <div className=''>
+                  <textarea
+                    id="about"
+                    name="about"
+                    rows={3}
+                    value={desc}
+                    onChange={(e) => setDesc(e.target.value)}
+                    className="shadow-sm block w-full focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm border border-gray-300 rounded-md"
+                    placeholder={'What did you like or dislike about the drink?'}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          </>
+          }
+          <Reviews reviews={allReviews} />
         </div>
       </div>
       : <Spinner width={100} />}

@@ -1,11 +1,12 @@
 import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { signInWithRedirect } from '@firebase/auth';
-import { auth, googleProvider } from '../lib/firebase';
-import { createUserWithEmailAndPassword } from '@firebase/auth';
+import { auth, googleProvider, firestore } from '../lib/firebase';
+import { createUserWithEmailAndPassword, getRedirectResult } from '@firebase/auth';
 import { useRouter } from 'next/router';
 import { useContext, useEffect } from 'react';
 import { UserContext } from '../lib/context';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 
 export default function Signin() {
@@ -20,7 +21,7 @@ export default function Signin() {
   const onSubmitHandler = (data) => {
     createUserWithEmailAndPassword(auth, data.email, data.password)
       .then((userCredential) => {
-        router.push('/')
+        console.log('success')
       })
       .catch((error) => {
         setError('firebase', {
@@ -35,9 +36,14 @@ export default function Signin() {
   }
 
   useEffect(() => {
-    if (user) {
-      router.push('/')
-    }
+    async function updateFirebase() {
+      if(user) {
+          const userDoc = doc(firestore, `users/${user.uid}`)
+          await setDoc(userDoc, {username: user.displayName, photoUrl: user.photoURL, email: user.email}, {merge: true})
+          router.push('/')
+      }
+  }
+  updateFirebase()
   }, [user])
 
 

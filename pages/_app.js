@@ -5,6 +5,7 @@ import { useAuthState } from 'react-firebase-hooks/auth';
 import { UserContext } from '../lib/context';
 import '../styles/global.css'
 import 'tailwindcss/tailwind.css'
+import 'react-quill/dist/quill.snow.css'
 
 
 
@@ -16,7 +17,6 @@ function MyApp({ Component, pageProps }) {
   <UserContext.Provider value={user}>
     <Navbar />
     <Component {...pageProps} />
-    <Footer />
   </UserContext.Provider>
   )
 }

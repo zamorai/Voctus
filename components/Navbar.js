@@ -8,15 +8,10 @@ import { auth } from '../lib/firebase'
 import axios from 'axios'
 import { useRouter } from 'next/router'
 
-const nums = [11202, 11369, 12188, 11128]
 const navigation = [
   { name: 'Find Drinks', href: '/search', current: false },
-  { name: 'Random Drink', href:`#`, current: false },
 ]
-const userNavigation = [
-  { name: 'Your Profile', href: '#' },
-  { name: 'Sign out', href: '#' },
-]
+
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(' ')
@@ -24,19 +19,15 @@ function classNames(...classes) {
 
 export default function Navbar() {
   const user = useContext(UserContext);
-  const router = useRouter();
+  console.log(user)
+  const userNavigation = [
+    { name: 'Your Profile', href: `/${user?.uid}` },
+    { name: 'Sign out', href: '#' },
+  ]
 
   const signOutUser = (buttonId) => {
     if (buttonId === "Sign out") {
       signOut(auth)
-    }
-  }
-
-  const getRandomDrink = async (name) => {
-    if (name === 'Random Drink') {
-      const randomDrink = await axios.get('https://www.thecocktaildb.com/api/json/v2/9973533/random.php')
-      const id = randomDrink.data.drinks[0].idDrink
-      router.push(`/drinks/${id}`)
     }
   }
 
@@ -77,7 +68,6 @@ export default function Navbar() {
                   {navigation.map((item) => (
                     <Link href={item.href}>
                       <a
-                        onClick={() => getRandomDrink(item.name)}
                         key={item.name}
                         className={classNames(
                           item.current ? 'bg-gray-900 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white',
@@ -99,6 +89,7 @@ export default function Navbar() {
                 <>
                   {/*Action button */}
                   <div className="flex-shrink-0">
+                    <Link href='/create'>
                     <button
                       type="button"
                       className="relative inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-500 hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-indigo-500"
@@ -106,19 +97,21 @@ export default function Navbar() {
                       <BeakerIcon className="-ml-1 mr-2 h-5 w-5" aria-hidden="true" />
                       <span>Mixology</span>
                     </button>
+                    </Link>
                   </div>
 
                   <div className="hidden md:ml-4 md:flex-shrink-0 md:flex md:items-center">
-                    <button
-                      type="button"
+                    <Link href={`/${user?.uid}/favorites`} >
+                    <a
                       className="bg-gray-800 p-1 rounded-full text-coolGray-400 hover:text-white focus:outline-none"
                     >
-                      <span className="sr-only">View notifications</span>
+                      <span className="sr-only">View Favorites</span>
                       <HeartIcon className="h-6 w-6" aria-hidden="true" />
-                    </button>
+                    </a>
+                    </Link>
 
                     {/* Profile dropdown */}
-                    <Menu as="div" className="ml-3 relative">
+                    <Menu as="div" className="ml-3 relative z-10"> 
                       <div>
                         <Menu.Button className="bg-gray-800 flex text-sm rounded-full focus:outline-none ">
                           <span className="sr-only">Open user menu</span>
@@ -140,6 +133,7 @@ export default function Navbar() {
                           {userNavigation.map((item) => (
                             <Menu.Item key={item.name}>
                               {({ active }) => (
+                                <Link href={item.href}>
                                 <a
                                   onClick={() => signOutUser(item.name)}
                                   href={item.href}
@@ -150,6 +144,7 @@ export default function Navbar() {
                                 >
                                   {item.name}
                                 </a>
+                                </Link>
                               )}
                             </Menu.Item>
                           ))}
@@ -179,7 +174,6 @@ export default function Navbar() {
               {navigation.map((item) => (
                 <Link href={item.href} >
                 <a
-                  onClick={() => getRandomDrink(item.name)}
                   key={item.name}
                   className={classNames(
                     item.current ? 'bg-gray-900 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white',
@@ -202,16 +196,18 @@ export default function Navbar() {
                   <div className="text-base font-medium text-white">{user?.name}</div>
                   <div className="text-sm font-medium text-gray-400">{user?.email}</div>
                 </div>
+                <Link href={`/${user?.uid}/favorites`} >
                 <button
-                  type="button"
                   className="ml-auto flex-shrink-0 bg-gray-800 p-1 rounded-full text-gray-400 hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-white"
                 >
                   <span className="sr-only">View notifications</span>
                   <HeartIcon className="h-6 w-6" aria-hidden="true" />
                 </button>
+                </Link>
               </div>
               <div className="mt-3 px-2 space-y-1 sm:px-3">
                 {userNavigation.map((item) => (
+                  <Link href={item.href}>
                   <a
                     onClick={() => signOutUser(item.name)}
                     key={item.name}
@@ -220,6 +216,7 @@ export default function Navbar() {
                   >
                     {item.name}
                   </a>
+                  </Link>
                 ))}
               </div>
             </div>
